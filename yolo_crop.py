@@ -16,7 +16,13 @@ def process_input(input_path, elephant_name, frame_stride=5):
         image_files = [f for f in os.listdir(input_path)
                        if f.lower().endswith((".jpg", ".png", ".jpeg"))]
         saved = 0
+        skip_stride = frame_stride  # ใช้ข้ามทุก N ภาพ
+
         for i, img_name in enumerate(sorted(image_files)):
+            # 🔹 ข้ามภาพตาม stride เช่น ทุก 5 ภาพ
+            if i % skip_stride != 0:
+                continue
+
             img_path = os.path.join(input_path, img_name)
             frame = cv2.imread(img_path)
             if frame is None:
@@ -41,7 +47,7 @@ def process_input(input_path, elephant_name, frame_stride=5):
             cv2.imwrite(save_path, enhanced)
             saved += 1
 
-        print(f"✅ Saved {saved} images from folder to {output_dir}")
+        print(f"✅ Saved {saved} images (every {skip_stride}th) from folder to {output_dir}")
         return
 
     # --- ถ้าเป็นวิดีโอ ---
@@ -55,7 +61,7 @@ def process_input(input_path, elephant_name, frame_stride=5):
             if not ret:
                 break
 
-            # 🔹 ข้ามเฟรมตาม stride
+            # 🔹 ข้ามเฟรมตาม stride เช่น ทุก 5 เฟรม
             if frame_idx % frame_stride != 0:
                 frame_idx += 1
                 continue
@@ -66,6 +72,7 @@ def process_input(input_path, elephant_name, frame_stride=5):
                 frame_idx += 1
                 continue
 
+            # เอากล่องที่ใหญ่สุด
             areas = [(b[2]-b[0])*(b[3]-b[1]) for b in boxes]
             max_idx = int(areas.index(max(areas)))
             x1, y1, x2, y2 = map(int, boxes[max_idx][:4])
@@ -82,4 +89,4 @@ def process_input(input_path, elephant_name, frame_stride=5):
             frame_idx += 1
 
         cap.release()
-        print(f"✅ Saved {saved} images from video to {output_dir}")
+        print(f"✅ Saved {saved} images (every {frame_stride}th frame) from video to {output_dir}")
