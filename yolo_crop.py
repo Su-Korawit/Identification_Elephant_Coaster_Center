@@ -4,15 +4,34 @@ import cv2
 from ultralytics import YOLO
 from .enhance import enhance_image, is_blurry
 
-def process_input(input_path, elephant_name, frame_stride=5):
-    """ครอบช้างจากภาพ, วิดีโอ, หรือโฟลเดอร์ แล้วบันทึกลง dataset"""
+def process_input(input_path, elephant_name=None, frame_stride=5):
+    """ครอบช้างจากภาพ, วิดีโอ, หรือโฟลเดอร์ (รวม subfolder) แล้วบันทึกลง dataset"""
     model = YOLO("yolo11n.pt")
 
-    output_dir = f"artifacts/datasets/reid/train/{elephant_name}"
-    os.makedirs(output_dir, exist_ok=True)
+    base_output = "artifacts/datasets/reid/train"
+    os.makedirs(base_output, exist_ok=True)
 
-    # --- ถ้าเป็นโฟลเดอร์ของภาพ ---
+    # --- 📦 ถ้าเป็นโฟลเดอร์หลักที่มีหลายช้าง ---
     if os.path.isdir(input_path):
+        subfolders = [os.path.join(input_path, d) for d in os.listdir(input_path)
+                      if os.path.isdir(os.path.join(input_path, d))]
+        if len(subfolders) > 0:
+            print(f"📁 Detected {len(subfolders)} subfolders. Processing all elephants...")
+            for sub in subfolders:
+                name = os.path.basename(sub)
+                print(f"\n🐘 Processing elephant: {name}")
+                process_input(sub, name, frame_stride=frame_stride)
+            print("✅ All subfolders processed successfully.")
+            return
+
+    # --- 🖼 ถ้าเป็นโฟลเดอร์ของภาพ (ไม่มี subfolder ย่อย) ---
+    if os.path.isdir(input_path):
+        if elephant_name is None:
+            elephant_name = os.path.basename(os.path.normpath(input_path))
+
+        output_dir = os.path.join(base_output, elephant_name)
+        os.makedirs(output_dir, exist_ok=True)
+
         image_files = [f for f in os.listdir(input_path)
                        if f.lower().endswith((".jpg", ".png", ".jpeg"))]
         saved = 0
@@ -47,11 +66,17 @@ def process_input(input_path, elephant_name, frame_stride=5):
             cv2.imwrite(save_path, enhanced)
             saved += 1
 
-        print(f"✅ Saved {saved} images (every {skip_stride}th) from folder to {output_dir}")
+        print(f"✅ Saved {saved} images (every {skip_stride}th) from {input_path} → {output_dir}")
         return
 
-    # --- ถ้าเป็นวิดีโอ ---
+    # --- 🎞 ถ้าเป็นวิดีโอ ---
     if input_path.lower().endswith((".mp4", ".avi", ".mov")):
+        if elephant_name is None:
+            elephant_name = os.path.splitext(os.path.basename(input_path))[0]
+
+        output_dir = os.path.join(base_output, elephant_name)
+        os.makedirs(output_dir, exist_ok=True)
+
         cap = cv2.VideoCapture(input_path)
         frame_idx = 0
         saved = 0
@@ -89,4 +114,4 @@ def process_input(input_path, elephant_name, frame_stride=5):
             frame_idx += 1
 
         cap.release()
-        print(f"✅ Saved {saved} images (every {frame_stride}th frame) from video to {output_dir}")
+        print(f"✅ Saved {saved} frames (every {frame_stride}th) from video {input_path} → {output_dir}")
