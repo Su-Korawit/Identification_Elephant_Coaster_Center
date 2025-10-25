@@ -117,16 +117,41 @@ def process_image(image_path, output_path=None):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
+def process_folder(folder_path, output_base=OUTPUT_DIR):
+    # สร้าง output folder
+    os.makedirs(output_base, exist_ok=True)
+    print(f"📁 Starting identification in folder: {folder_path}")
+
+    # เดินลูปทุกไฟล์ในทุก subfolder
+    for root, _, files in os.walk(folder_path):
+        for file in files:
+            if file.lower().endswith((".jpg", ".jpeg", ".png")):
+                input_path = os.path.join(root, file)
+                rel_path = os.path.relpath(input_path, folder_path)
+                out_dir = os.path.join(output_base, os.path.dirname(rel_path))
+                os.makedirs(out_dir, exist_ok=True)
+                out_path = os.path.join(out_dir, f"identified_{file}")
+
+                try:
+                    process_image(input_path, out_path)
+                except Exception as e:
+                    print(f"❌ Error processing {file}: {e}")
+
+    print("✅ Folder identification completed.")
 
 if __name__ == "__main__":
-    mode = "image"
+    mode = "folder"  # "image", "video", หรือ "folder"
 
     if mode == "video":
         video_path = r"D:\Identification_Elephant_Coaster_Center\SampleDataset\aiko.mp4"
         output_path = os.path.join(OUTPUT_DIR, "identified_test.mp4")
         process_video(video_path, output_path)
-    else:
+
+    elif mode == "image":
         image_path = r"C:\Users\Administrator\Desktop\Identification_Elephant_Coaster_Center\SampleDatasets\Rat_sa_mee\img_ Rat_sa_mee_right_25.png"
         output_path = os.path.join(OUTPUT_DIR, "identified_test.jpg")
         process_image(image_path, output_path)
 
+    elif mode == "folder":
+        folder_path = r"C:\Users\Administrator\Desktop\Identification_Elephant_Coaster_Center\SampleDatasets"
+        process_folder(folder_path)
