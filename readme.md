@@ -60,7 +60,7 @@
     - ทำ augmentation (เพิ่มความหลากหลาย)
     - เตรียม DataLoader
 4. reid_model.py + train_reid.py
-    - สร้างโมเดล ReID (ResNet-18 → embedding)
+    - สร้างโมเดล ReID (ResNet-50 → embedding)
     - เทรนโมเดลให้รู้จักความต่างของแต่ละตัว
     - เซฟโมเดลที่ดีที่สุด (reid_model.pt)
 5. build_faiss.py
@@ -196,10 +196,10 @@ artifacts/
 
 * นิยามสถาปัตยกรรมโมเดล ElephantReIDModel:
 
-  * Backbone: ResNet-18 pretrained บน ImageNet
+  * Backbone: ResNet-50 pretrained บน ImageNet (`models.resnet50(weights="IMAGENET1K_V2")` ใน `reid_model.py`)
 
     * ทำหน้าที่ดึง feature (ลายผิว, รูปร่าง, texture)
-    * เลือก ResNet-18 แทน ResNet-50 เพื่อลดขนาดและลด overfitting ใน dataset เล็ก
+    * ผลทดลองบน dataset ชุดนี้อยู่ที่ `experiments/RESULTS.md`
   * Embedding head:
 
     * Linear → BatchNorm → ReLU → Dropout
@@ -391,9 +391,9 @@ artifacts/
    → เพื่อวัด performance จริงแบบคงที่
 5. โมเดล:
 
-   * Backbone = ResNet-18 pretrained ImageNet
+   * Backbone = ResNet-50 pretrained ImageNet
 
-     * เลือก ResNet-18 ไม่ใช่ ResNet-50 เพื่อลด overfitting (dataset ยังเล็ก)
+     * dataset มีช้างเพียง 3 ตัว จึงดูผลทดสอบและข้อจำกัดใน `experiments/RESULTS.md` ประกอบ
    * เปลี่ยนหัวสุดท้ายเป็น embedding layer + BatchNorm + Dropout
    * normalize output เป็นเวกเตอร์หน่วย (L2 normalize)
 6. เทรนด้วย CrossEntropyLoss
@@ -636,7 +636,9 @@ python evaluate_by_view.py --root path/to/QUERY_DATASET
 - ผลลัพธ์: ตารางต่อ (threshold, มุม) ได้แก่ correct% / wrong% / unknown% และไฟล์ `artifacts/outputs/eval_by_view.csv`
 - ภาพที่ YOLO ตรวจไม่พบช้าง จะถูกนับแยกตามมุม ไม่ปนในความแม่นยำ
 
-### ข้อสังเกตเรื่อง threshold ใน `infer.py`
-`match = (1 - dist / THRESHOLD) * 100` และตัดสินว่าเป็นตัวนั้นเมื่อ `match >= 99` (ตัวแปร `match_wantted`)
-เมื่อ `THRESHOLD = 0.20` จะเท่ากับต้องมี `dist <= 0.002` ซึ่งเข้มมาก ภาพใหม่ของช้างตัวเดิมส่วนใหญ่จึงถูกตอบเป็น Unknown
-ให้ใช้ตารางจาก `evaluate_by_view.py` เลือกค่าที่สมดุลระหว่าง wrong% กับ unknown% ก่อนปรับใน `infer.py`
+### เรื่อง threshold ใน `infer.py` (แก้แล้ว)
+เดิมโค้ดตัดสินว่าเป็นช้างตัวนั้นเมื่อ `match >= 99` (ตัวแปร `match_wantted`) โดย `match = (1 - dist / THRESHOLD) * 100` เมื่อ `THRESHOLD = 0.20` จึงเท่ากับต้องมี `dist <= 0.002` ซึ่งเข้มเกินไป ภาพใหม่ของช้างตัวเดิมถูกตอบเป็น Unknown เกือบทั้งหมด (ทดสอบกับโมเดลและ index เดิม 165 ภาพที่ไม่ได้อยู่ใน index)
+
+ตอนนี้ตัดสินด้วย `dist <= THRESHOLD` ตามที่ README ส่วน Threshold Decision อธิบายไว้ ค่า `match` ยังแสดงบนภาพเป็นตัวบอกความใกล้ แต่ไม่ใช้ตัดสินแล้ว ที่ `THRESHOLD = 0.20` ในการทดสอบรอบเดียวกันได้ถูกประมาณ 63% ตอบ Unknown 36% และตอบผิดประมาณ 1% (ตัวเลขจากภาพ 165 ภาพ ดูตารางเต็มใน `experiments/RESULTS.md`)
+
+ข้อจำกัดที่ยังมี: ช้างตัวใหม่ที่ไม่เคยเห็นอาจถูกตอบเป็นช้างที่รู้จักได้ ในการทดสอบ 9 ภาพของช้างที่ไม่รู้จักกับโมเดลที่เทรนซ้ำ ระบบตอบผิด 6 ภาพ ควรจูน threshold ด้วยตารางจาก `evaluate_by_view.py` ก่อนใช้งานจริง

@@ -95,8 +95,9 @@ def identify_frame(frame, image_path=None):
         dist, idx = D[0][0], I[0][0]
         match = max(0, 1 - dist / THRESHOLD) * 100
 
-        match_wantted = 99
-        if match >= match_wantted:
+        # ตัดสินด้วยระยะ (distance) ตรง ๆ: ใกล้กว่าหรือเท่ากับ THRESHOLD จึงถือว่าเป็นช้างตัวนั้น
+        # (เดิมใช้ match >= 99 ซึ่งเทียบเท่า dist <= 0.002 เข้มเกินไป)
+        if dist <= THRESHOLD:
             name = names[idx]
             color = (0, 255, 0)
         else:
