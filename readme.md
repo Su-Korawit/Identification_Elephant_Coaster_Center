@@ -620,3 +620,23 @@ embedding ของช้างต่างตัวกันควรห่า�
 
 ```
 ```
+
+---
+
+## การวัดผลแยกตามมุมกล้อง (Evaluation by view)
+
+สคริปต์ `evaluate_by_view.py` วัดความแม่นยำของระบบแยกตามมุม (front / back / left / right) และลองหลายค่า threshold ในรอบเดียว
+เพื่อดูว่ามุมไหนแยกตัวช้างได้แย่ที่สุด ต้องใช้ภาพ query ที่ **ไม่ได้ใช้สร้าง FAISS index**
+
+```bash
+python evaluate_by_view.py --root path/to/QUERY_DATASET
+```
+
+- โครงสร้าง: `QUERY_DATASET/<ชื่อช้าง>/img_<ชื่อช้าง>_<มุม>_<เลข>.png` (อ่านมุมจากชื่อไฟล์)
+- ผลลัพธ์: ตารางต่อ (threshold, มุม) ได้แก่ correct% / wrong% / unknown% และไฟล์ `artifacts/outputs/eval_by_view.csv`
+- ภาพที่ YOLO ตรวจไม่พบช้าง จะถูกนับแยกตามมุม ไม่ปนในความแม่นยำ
+
+### ข้อสังเกตเรื่อง threshold ใน `infer.py`
+`match = (1 - dist / THRESHOLD) * 100` และตัดสินว่าเป็นตัวนั้นเมื่อ `match >= 99` (ตัวแปร `match_wantted`)
+เมื่อ `THRESHOLD = 0.20` จะเท่ากับต้องมี `dist <= 0.002` ซึ่งเข้มมาก ภาพใหม่ของช้างตัวเดิมส่วนใหญ่จึงถูกตอบเป็น Unknown
+ให้ใช้ตารางจาก `evaluate_by_view.py` เลือกค่าที่สมดุลระหว่าง wrong% กับ unknown% ก่อนปรับใน `infer.py`
